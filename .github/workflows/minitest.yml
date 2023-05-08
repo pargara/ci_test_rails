@@ -1,48 +1,35 @@
-name: Minitest
-
+name: "Ruby on Rails CI"
 on:
+  push:
+    branches: [ "main" ]
   pull_request:
-    branches:
-      - main
-
+    branches: [ "main", "models" ]
 jobs:
   test:
     runs-on: ubuntu-latest
-    steps:
-      - name: Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.11.0
-
-  build:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        test-path:
-          - test/controllers/*.rb
-          - test/models/*
-
     services:
-      pg:
-        image: postgres:12.1
-        ports: ['5432:5432']
+      postgres:
+        image: postgres:11-alpine
+        ports:
+          - "5432:5432"
         env:
-          POSTGRES_PASSWORD: postgres
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
+          POSTGRES_DB: rails_test
+          POSTGRES_USER: rails
+          POSTGRES_PASSWORD: password
+    env:
+      RAILS_ENV: test
+      DATABASE_URL: "postgres://rails:password@localhost:5432/rails_test"
     steps:
-      - name: Checkout Repository
+      - name: Checkout code
         uses: actions/checkout@v3
-      - name: Set up Ruby
-        uses: ruby/setup-ruby@v1
+      # Add or replace dependency steps here
+      - name: Install Ruby and gems
+        uses: ruby/setup-ruby@55283cc23133118229fd3f97f9336ee23a179fcf # v1.146.0
         with:
-          ruby-version: 3.2.1
- 
-      - name: Bundle install and dependencies
-        run: bundle install --jobs 4 --retry 3 && sudo apt-get install libpq-dev
-        run: |
-          bundle exec rails db:setup
+          bundler-cache: true
+      # Add or replace database setup steps here
+      - name: Set up database schema
+        run: bin/rails db:schema:load
+      # Add or replace test runners here
       - name: Run tests
-        run: bundle exec rails test ${{ matrix['test-path']}}
+        run: bin/rake
